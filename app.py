@@ -1,10 +1,4 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
-import os
-from pathlib import Path
-import joblib
-import streamlit as st
 from pathlib import Path
 from utils import load_dataset, build_or_load_models, get_recommendations, fetch_poster
 
@@ -14,7 +8,6 @@ PLACEHOLDER = ASSETS / "placeholder.svg"
 
 
 def main():
-    if df is None:
     st.markdown(
         """
         <style>

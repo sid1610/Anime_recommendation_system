@@ -1,6 +1,10 @@
 import streamlit as st
 from pathlib import Path
 from utils import load_dataset, build_or_load_models, get_recommendations, fetch_poster
+import logging
+import traceback
+
+logging.basicConfig(level=logging.INFO)
 
 
 ASSETS = Path("assets")
@@ -8,7 +12,8 @@ PLACEHOLDER = ASSETS / "placeholder.svg"
 
 
 def main():
-    st.markdown(
+    try:
+        st.markdown(
         """
         <style>
         .hero{padding:24px;border-radius:12px;background:linear-gradient(90deg,#071033,#092240);color:white}
@@ -27,13 +32,13 @@ def main():
         unsafe_allow_html=True,
     )
 
-    try:
-        df = load_dataset()
-    except FileNotFoundError:
-        st.error("Dataset not found. Please ensure `anime_recommendation_data.csv` is in the repo root.")
-        return
+        try:
+            df = load_dataset()
+        except FileNotFoundError:
+            st.error("Dataset not found. Please ensure `anime_recommendation_data.csv` is in the repo root.")
+            return
 
-    cosine_sim, indices, _ = build_or_load_models(df)
+        cosine_sim, indices, _ = build_or_load_models(df)
 
     # Controls
     with st.sidebar:
@@ -61,6 +66,11 @@ def main():
                 else:
                     st.write(f"**{row['name']}**")
             st.markdown(f"<p class='genres'>{row.get('genre','')}</p>", unsafe_allow_html=True)
+    except Exception as e:
+        logging.exception("Unhandled exception in app")
+        st.error("An unexpected error occurred while loading the app.")
+        st.exception(e)
+        st.text(traceback.format_exc())
 
 
 if __name__ == '__main__':

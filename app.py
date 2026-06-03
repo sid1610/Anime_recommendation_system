@@ -40,32 +40,32 @@ def main():
 
         cosine_sim, indices, _ = build_or_load_models(df)
 
-    # Controls
-    with st.sidebar:
-        st.header("Search")
-        name_list = df['name'].tolist()
-        choice = st.selectbox("Choose anime", options=name_list, index=0)
-        n = st.slider("Number of recommendations", 4, 20, 8)
-        st.markdown("---")
-        st.markdown("Tip: If a specific title isn't found, try selecting a similar popular title from the list.")
+        # Controls
+        with st.sidebar:
+            st.header("Search")
+            name_list = df['name'].tolist()
+            choice = st.selectbox("Choose anime", options=name_list, index=0)
+            n = st.slider("Number of recommendations", 4, 20, 8)
+            st.markdown("---")
+            st.markdown("Tip: If a specific title isn't found, try selecting a similar popular title from the list.")
 
-    # Show selection
-    st.subheader(f"Results for '{choice}'")
-    recs = get_recommendations(choice, df, cosine_sim, indices, topn=n)
+        # Show selection
+        st.subheader(f"Results for '{choice}'")
+        recs = get_recommendations(choice, df, cosine_sim, indices, topn=n)
 
-    cols = st.columns(4)
-    for i, (_, row) in enumerate(recs.iterrows()):
-        col = cols[i % 4]
-        with col:
-            poster = fetch_poster(row['name'])
-            if poster:
-                st.image(poster, caption=row['name'], use_column_width=True)
-            else:
-                if PLACEHOLDER.exists():
-                    st.image(str(PLACEHOLDER), caption=row['name'], use_column_width=True)
+        cols = st.columns(4)
+        for i, (_, row) in enumerate(recs.iterrows()):
+            col = cols[i % 4]
+            with col:
+                poster = fetch_poster(row['name'])
+                if poster:
+                    st.image(poster, caption=row['name'], use_column_width=True)
                 else:
-                    st.write(f"**{row['name']}**")
-            st.markdown(f"<p class='genres'>{row.get('genre','')}</p>", unsafe_allow_html=True)
+                    if PLACEHOLDER.exists():
+                        st.image(str(PLACEHOLDER), caption=row['name'], use_column_width=True)
+                    else:
+                        st.write(f"**{row['name']}**")
+                st.markdown(f"<p class='genres'>{row.get('genre','')}</p>", unsafe_allow_html=True)
     except Exception as e:
         logging.exception("Unhandled exception in app")
         st.error("An unexpected error occurred while loading the app.")

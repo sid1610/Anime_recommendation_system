@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+.pytest_cache/
+.venv/
+venv/
+env/
+*.pyc
+
+# Pickles and large models
+*.pkl
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Streamlit
+.streamlit/secret.toml
+
+# OS
+Thumbs.db
+*.DS_Store

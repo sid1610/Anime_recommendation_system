@@ -21,35 +21,67 @@ def load_dataset(path: Path = DATA_CSV) -> pd.DataFrame:
     return df
 
 
-def build_or_load_models(df: pd.DataFrame):
-    if COSINE_PKL.exists() and INDICES_PKL.exists() and VECTORIZER_PKL.exists():
-        cosine_sim = joblib.load(COSINE_PKL)
+def build_or_load_models(df: pd.DataFrame, force_rebuild: bool = False):
+    """
+    Load or build the text vectorizer and indices. We avoid precomputing
+    or loading the full cosine similarity matrix (large) to prevent OOM
+    on small deployment instances. Recommendations compute similarity
+    on-demand using the vectorizer.
+    Returns: (cosine_sim_or_none, indices, vectorizer)
+    """
+    # Prefer loading vectorizer + indices only
+    if not force_rebuild and INDICES_PKL.exists() and VECTORIZER_PKL.exists():
         indices = joblib.load(INDICES_PKL)
         vectorizer = joblib.load(VECTORIZER_PKL)
-        return cosine_sim, indices, vectorizer
+        return None, indices, vectorizer
 
+    # Build vectorizer and indices from corpus
     corpus = df['genre'].fillna("")
     vectorizer = TfidfVectorizer(stop_words='english')
-    tfidf = vectorizer.fit_transform(corpus)
-    cosine_sim = linear_kernel(tfidf, tfidf)
+    _ = vectorizer.fit_transform(corpus)
     indices = pd.Series(df.index, index=df['name']).drop_duplicates()
 
-    joblib.dump(cosine_sim, COSINE_PKL)
     joblib.dump(indices, INDICES_PKL)
     joblib.dump(vectorizer, VECTORIZER_PKL)
 
-    return cosine_sim, indices, vectorizer
+    return None, indices, vectorizer
 
 
-def get_recommendations(title: str, df: pd.DataFrame, cosine_sim, indices, topn=10):
+@st.cache_data
+def _compute_tfidf_matrix(df, _vectorizer):
+    # `_vectorizer` is intentionally underscore-prefixed so Streamlit's
+    # cache machinery does not attempt to hash the estimator object.
+    corpus = df['genre'].fillna("")
+    return _vectorizer.transform(corpus)
+
+
+def get_recommendations(title: str, df: pd.DataFrame, cosine_sim, indices, vectorizer, topn=10):
+    """
+    Returns top-N recommendations for a title. If a precomputed
+    cosine_sim matrix is provided (backwards compatibility), use it;
+    otherwise compute similarity on-demand using the vectorizer.
+    """
     if title not in indices:
         return pd.DataFrame()
+
     idx = indices[title]
-    sim_scores = list(enumerate(cosine_sim[idx]))
-    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
-    sim_scores = sim_scores[1: topn+1]
-    anime_indices = [i[0] for i in sim_scores]
-    return df.iloc[anime_indices]
+
+    if cosine_sim is not None:
+        sim_scores = list(enumerate(cosine_sim[idx]))
+        sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
+        sim_scores = sim_scores[1: topn+1]
+        anime_indices = [i[0] for i in sim_scores]
+        return df.iloc[anime_indices]
+
+    # On-demand compute similarities
+    tfidf = _compute_tfidf_matrix(df, vectorizer)
+    vec = tfidf[idx]
+    sims = linear_kernel(vec, tfidf).flatten()
+    ranked_idx = sims.argsort()[::-1]
+    # remove the item itself
+    ranked_idx = ranked_idx[ranked_idx != idx]
+    top_idx = ranked_idx[:topn]
+    return df.iloc[top_idx]
 
 
 @st.cache_data

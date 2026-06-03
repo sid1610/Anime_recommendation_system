@@ -38,7 +38,7 @@ def main():
             st.error("Dataset not found. Please ensure `anime_recommendation_data.csv` is in the repo root.")
             return
 
-        cosine_sim, indices, _ = build_or_load_models(df)
+        cosine_sim, indices, vectorizer = build_or_load_models(df)
 
         # Controls
         with st.sidebar:
@@ -51,7 +51,7 @@ def main():
 
         # Show selection
         st.subheader(f"Results for '{choice}'")
-        recs = get_recommendations(choice, df, cosine_sim, indices, topn=n)
+        recs = get_recommendations(choice, df, cosine_sim, indices, vectorizer, topn=n)
 
         cols = st.columns(4)
         for i, (_, row) in enumerate(recs.iterrows()):
